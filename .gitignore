@@ -1,2 +1,10 @@
-/Deep-Live-Cam
 .DS_Store
+.omc/
+Deep-Live-Cam/.git/
+Deep-Live-Cam/__pycache__/
+Deep-Live-Cam/**/__pycache__/
+Deep-Live-Cam/**/*.pyc
+Deep-Live-Cam/models/*.onnx
+Deep-Live-Cam/models/*.pth
+Deep-Live-Cam/models/*.download
+Deep-Live-Cam/temp/

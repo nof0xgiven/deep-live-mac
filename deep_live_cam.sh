@@ -3,8 +3,6 @@
 # Constants
 ENV_NAME="deep-live-cam"
 REQUIRED_PYTHON_VERSION="3.10"
-REPO_URL="https://github.com/hacksider/Deep-Live-Cam.git"
-PINNED_DEEP_LIVE_CAM_COMMIT="834bc43768bd8a799aab3ea03d98e622c0489243"
 MODELS_DIR="Deep-Live-Cam/models"
 URL_GFPGAN="https://huggingface.co/hacksider/deep-live-cam/resolve/main/GFPGANv1.4.pth"
 URL_INSWAPPER="https://huggingface.co/hacksider/deep-live-cam/resolve/main/inswapper_128_fp16.onnx"
@@ -29,8 +27,8 @@ display_help() {
     echo "  --setup         Perform setup only, without running the application."
     echo "  --nocam         Skip camera access check and proceed with setup and running."
     echo "  --cpu           Run the application using CPU only."
-    echo "  --clean         Remove the Conda environment and delete the cloned repository."
-    echo "  --experimental  Accepted for compatibility; setup still uses the pinned commit."
+    echo "  --clean         Remove the Conda environment and downloaded model artifacts."
+    echo "  --experimental  Accepted for compatibility; bundled app source is always used."
     echo "  --camreset [APP_ID]  Reset camera access for the specified application (e.g., com.apple.Terminal or com.googlecode.iterm2)."
     echo "  --help          Display this help message and exit."
     echo ""
@@ -117,7 +115,7 @@ install_conda() {
 # Function to check the Python version in the environment
 check_python_version_in_env() {
     local python_version=$("$CONDA_BIN_PATH/conda" run -n $ENV_NAME python --version 2>&1 | awk '{print $2}')
-    
+
     if [[ $python_version == $REQUIRED_PYTHON_VERSION* ]]; then
         echo "Conda environment '$ENV_NAME' already has the correct Python version ($REQUIRED_PYTHON_VERSION)."
         return 0
@@ -169,37 +167,16 @@ get_conda_bin_paths() {
     fi
 }
 
-# Function to clone the Git repository if not already cloned
+# Function to verify the bundled app source is present
 clone_repo() {
-    if [[ ! -d "Deep-Live-Cam" ]]; then
-        echo "Cloning the pinned Deep-Live-Cam repository..."
-        if [[ "${CLONE_EXPERIMENTAL:-false}" == true ]]; then
-            echo "Experimental branch selection is disabled; using pinned commit $PINNED_DEEP_LIVE_CAM_COMMIT."
-        fi
-        git clone "$REPO_URL" Deep-Live-Cam
-        if [[ $? -ne 0 ]]; then
-            echo "Failed to clone the Deep-Live-Cam repository."
-            exit 1
-        fi
-    else
-        echo "Deep-Live-Cam repository already exists."
+    if [[ "${CLONE_EXPERIMENTAL:-false}" == true ]]; then
+        echo "Experimental branch selection is disabled; using bundled Deep-Live-Cam app source."
     fi
-    git -C Deep-Live-Cam fetch --depth 1 origin "$PINNED_DEEP_LIVE_CAM_COMMIT"
-    if [[ $? -ne 0 ]]; then
-        echo "Failed to fetch pinned Deep-Live-Cam commit $PINNED_DEEP_LIVE_CAM_COMMIT."
+    if [[ ! -f "Deep-Live-Cam/run.py" ]]; then
+        echo "Bundled Deep-Live-Cam app source is missing. Re-clone https://github.com/nof0xgiven/deep-live-mac.git and try again."
         exit 1
     fi
-    git -C Deep-Live-Cam checkout --detach "$PINNED_DEEP_LIVE_CAM_COMMIT"
-    if [[ $? -ne 0 ]]; then
-        echo "Failed to checkout pinned Deep-Live-Cam commit $PINNED_DEEP_LIVE_CAM_COMMIT."
-        exit 1
-    fi
-    local actual_commit
-    actual_commit=$(git -C Deep-Live-Cam rev-parse HEAD)
-    if [[ "$actual_commit" != "$PINNED_DEEP_LIVE_CAM_COMMIT" ]]; then
-        echo "Deep-Live-Cam checkout verification failed: expected $PINNED_DEEP_LIVE_CAM_COMMIT, got $actual_commit."
-        exit 1
-    fi
+    echo "Using bundled Deep-Live-Cam app source."
 }
 
 verify_file_sha256() {
@@ -288,7 +265,7 @@ run_setup() {
 
     # Check and install Xcode Command Line Tools if necessary
     check_and_install_xcode_tools
-    
+
     # Check and install Homebrew if necessary
     check_and_install_homebrew
 
@@ -301,10 +278,10 @@ run_setup() {
     # Get the paths to python and pip
     get_conda_bin_paths
 
-    # Clone the repository before proceeding with other steps
+    # Verify bundled app source before proceeding with other steps
     clone_repo
 
-    # Check and download models after cloning the repository
+    # Check and download models after verifying bundled app source
     check_and_download_models
 
     # Change to the Deep-Live-Cam directory if it exists
@@ -454,10 +431,10 @@ detect_terminal_app_id() {
     esac
 }
 
-# Function to clean the environment and delete the repository
+# Function to clean the environment and downloaded model artifacts
 clean_environment() {
-    echo "Cleaning up environment and repository..."
-    
+    echo "Cleaning up environment and downloaded model artifacts..."
+
     # Ensure Conda is initialized in the current shell
     check_conda
     install_conda
@@ -476,12 +453,10 @@ clean_environment() {
         echo "Conda environment '$ENV_NAME' does not exist."
     fi
 
-    # Delete the cloned repository
-    if [[ -d "Deep-Live-Cam" ]]; then
-        echo "Deleting the Deep-Live-Cam repository..."
-        rm -rf Deep-Live-Cam
-    else
-        echo "Deep-Live-Cam repository does not exist."
+    # Remove downloaded models, but keep the bundled app source tracked in this repository.
+    if [[ -d "$MODELS_DIR" ]]; then
+        echo "Removing downloaded model artifacts..."
+        find "$MODELS_DIR" -type f \( -name "*.onnx" -o -name "*.pth" -o -name "*.download*" \) -delete
     fi
 
     echo "Cleanup complete."
@@ -507,7 +482,7 @@ for arg in "$@"; do
             SKIP_SETUP=true
             ;;
         --experimental)
-            echo "--experimental parameter detected. Setup will still use the pinned commit."
+            echo "--experimental parameter detected. Setup will still use the bundled app source."
             CLONE_EXPERIMENTAL=true
             ;;
         --setup)
@@ -523,7 +498,7 @@ for arg in "$@"; do
             USE_CPU_ONLY=true
             ;;
         --clean)
-            echo "--clean parameter detected. Cleaning environment and repository..."
+            echo "--clean parameter detected. Cleaning environment and downloaded model artifacts..."
             CLEAN_ONLY=true
             ;;
         --camreset)

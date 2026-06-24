@@ -1,13 +1,13 @@
 # Deep-Live-Cam Mac Installer
 
-This repository provides an installation script for setting up the [Deep-Live-Cam](https://github.com/hacksider/Deep-Live-Cam) project on macOS, specifically tailored for systems with Apple Silicon and Intel-based Macs. The script handles everything from setting up the Conda environment, installing necessary dependencies, and running the application with GPU acceleration if available.
+This repository provides an installation script and bundled Deep-Live-Cam app source for macOS, specifically tailored for systems with Apple Silicon and Intel-based Macs. The script handles everything from setting up the Conda environment, installing necessary dependencies, and running the application with GPU acceleration if available.
 
 * [Version History](./VERSION_HISTORY.md)
 
 ## Repository Links
 
-- **Original Deep-Live-Cam Repository**: [hacksider/Deep-Live-Cam](https://github.com/hacksider/Deep-Live-Cam)
-- **Installer Code Repository**: [nof0xgiven/deep-live-mac](https://github.com/nof0xgiven/deep-live-mac)
+- **Installer Repository**: [nof0xgiven/deep-live-mac](https://github.com/nof0xgiven/deep-live-mac)
+- **App Source**: `Deep-Live-Cam/` on `main`
 
 ## Prerequisites
 
@@ -39,7 +39,7 @@ It also aims to avoid pitfalls of other types of environment approaches by pinpo
    ./deep_live_cam.sh
    ```
 
-   The `--experimental` option is accepted for compatibility, but setup still checks out the pinned commit:
+   The `--experimental` option is accepted for compatibility, but setup still uses the bundled app source:
 
    ```
    ./deep_live_cam.sh --experimental
@@ -51,7 +51,7 @@ It also aims to avoid pitfalls of other types of environment approaches by pinpo
    - Check for and install Conda if not already available
    - Set up a Conda environment with Python 3.10
    - Activate the environment
-   - Clone the configured Deep-Live-Cam repository and check out the pinned commit.
+   - Verify the bundled `Deep-Live-Cam/` app source is present.
    - Download required models and verify their SHA-256 digests.
    - Install necessary dependencies, including appropriate CoreML support for either Intel or Apple Silicon
    - Check for camera access and guide you to enable it if necessary for most popular terminal types
@@ -63,11 +63,11 @@ It also aims to avoid pitfalls of other types of environment approaches by pinpo
 ## Command-Line Options
 
 - **`--run`**: Skip setup and run the application only.
-- **`--experimental`**: Accepted for compatibility, but setup still uses the pinned commit.
+- **`--experimental`**: Accepted for compatibility, but setup still uses the bundled app source.
 - **`--setup`**: Perform setup only, without running the application.
 - **`--nocam`**: Skip the camera access check and proceed with setup and running.
 - **`--cpu`**: Run the application using CPU only (no GPUs).
-- **`--clean`**: Remove the Conda environment and delete the cloned repository.
+- **`--clean`**: Remove the Conda environment and downloaded model artifacts.
 - **`--camreset [APP_ID]`**: Reset camera access for the specified application (e.g., `com.apple.Terminal` or `com.googlecode.iterm2`).
 - **`--help`**: Display help message and exit.
 
@@ -91,15 +91,15 @@ Alternatively, you can use the `--nocam` option to bypass this check if you do n
 
 ## Cleaning Up
 
-If you wish to remove the Conda environment and delete the cloned repository, you can use the `--clean` option:
+If you wish to remove the Conda environment and downloaded model artifacts, you can use the `--clean` option:
 
 ```
 ./deep_live_cam.sh --clean
 ```
 
-This will remove the environment and delete the `Deep-Live-Cam` directory, allowing you to start afresh.
+This will remove the environment and downloaded model artifacts while preserving the bundled `Deep-Live-Cam` source directory.
 
-This is also useful if you want to update the repository - clean up what was there before, and there is less likely to be merge conflicts if you attempt a 'git pull'
+This is also useful before rerunning setup with freshly downloaded model artifacts.
 
 ## Updating the script
 
@@ -111,7 +111,7 @@ git pull
 ./deep_live_cam.sh
 ```
 
-This will clean up the previous deep-cam-live (careful if you made any changes to the repository - they will be removed). Then the code will be updated with the new version. Then the script will be re-run.
+This will remove the Conda environment and downloaded model artifacts. Then the code will be updated with the new version. Then the script will be re-run.
 
 ## Uninstalling Miniconda and Homebrew
 
@@ -206,5 +206,5 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Credits
 
-- The original Deep-Live-Cam project is developed and maintained by [hacksider](https://github.com/hacksider).
+- This project is based on the original Deep-Live-Cam project.
 - This installer repository is maintained at [nof0xgiven/deep-live-mac](https://github.com/nof0xgiven/deep-live-mac).

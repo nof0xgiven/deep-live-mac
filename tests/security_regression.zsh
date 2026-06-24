@@ -64,54 +64,43 @@ EOF
     fi
 }
 
-test_clone_repo_checks_out_pinned_commit() {
-    local case_dir="$TMP_DIR/clone"
+test_clone_repo_uses_bundled_source_without_git() {
+    local case_dir="$TMP_DIR/bundled-source"
     local fake_bin="$case_dir/bin"
-    mkdir -p "$fake_bin"
+    mkdir -p "$fake_bin" "$case_dir/Deep-Live-Cam"
+    touch "$case_dir/Deep-Live-Cam/run.py"
 
     cat > "$fake_bin/git" <<'EOF'
 #!/bin/zsh
-set -euo pipefail
-echo "$*" >> "$GIT_LOG"
-if [[ "$1" == "clone" ]]; then
-    mkdir -p Deep-Live-Cam
-    exit 0
-fi
-if [[ "$1" == "-C" && "$3" == "fetch" ]]; then
-    exit 0
-fi
-if [[ "$1" == "-C" && "$3" == "checkout" ]]; then
-    if [[ "$4" == "--detach" ]]; then
-        echo "$5" > Deep-Live-Cam/.checked-out
-    else
-        echo "$4" > Deep-Live-Cam/.checked-out
-    fi
-    exit 0
-fi
-if [[ "$1" == "-C" && "$3" == "rev-parse" ]]; then
-    cat Deep-Live-Cam/.checked-out
-    exit 0
-fi
-echo "unexpected git invocation: $*" >&2
+echo "git should not be invoked for bundled source" >&2
 exit 1
 EOF
     chmod +x "$fake_bin/git"
 
     (
         cd "$case_dir"
-        export GIT_LOG="$case_dir/git.log"
         PATH="$fake_bin:/usr/bin:/bin"
         load_installer_functions
         clone_repo
-        if [[ ! -s Deep-Live-Cam/.checked-out ]]; then
-            echo "Expected clone_repo to checkout a pinned commit after cloning." >&2
-            exit 1
-        fi
-        if ! grep -q -- "-C Deep-Live-Cam checkout" "$GIT_LOG"; then
-            echo "Expected clone_repo to use git checkout for the pinned commit." >&2
-            exit 1
-        fi
     )
+}
+
+test_clone_repo_rejects_missing_bundled_source() {
+    local case_dir="$TMP_DIR/missing-bundled-source"
+    mkdir -p "$case_dir"
+
+    set +e
+    (
+        cd "$case_dir"
+        load_installer_functions
+        clone_repo >out 2>err
+    )
+    local exit_status=$?
+    set -e
+    if [[ "$exit_status" -eq 0 ]]; then
+        echo "Expected clone_repo to fail when bundled app source is missing." >&2
+        return 1
+    fi
 }
 
 test_model_download_rejects_digest_mismatch() {
@@ -185,6 +174,7 @@ test_existing_model_rejects_digest_mismatch() {
 }
 
 test_homebrew_bootstrap_does_not_execute_remote_script
-test_clone_repo_checks_out_pinned_commit
+test_clone_repo_uses_bundled_source_without_git
+test_clone_repo_rejects_missing_bundled_source
 test_model_download_rejects_digest_mismatch
 test_existing_model_rejects_digest_mismatch
