@@ -18,6 +18,8 @@ MAX_MODEL_DOWNLOAD_BYTES = 1024 * 1024 * 1024
 
 MODEL_SHA256: Dict[str, str] = {
     "https://huggingface.co/hacksider/deep-live-cam/resolve/main/inswapper_128.onnx": "e4a3f08c753cb72d04e10aa0f7dbe3deebbf39567d4ead6dce08e98aa49e16af",
+    "https://huggingface.co/hacksider/deep-live-cam/resolve/main/GPEN-BFR-256.onnx": "aa5bd3ab238640a378c59e4a560f7a7150627944cf2129e6311ae4720e833271",
+    "https://huggingface.co/hacksider/deep-live-cam/resolve/main/GPEN-BFR-512.onnx": "bf80acb8e91ba8852e3f012505be2c3b6cd6b3eed5ec605e3db87863c4e74d4e",
 }
 
 

@@ -2,6 +2,7 @@ import hashlib
 import http.server
 import inspect
 import os
+import sys
 import tempfile
 import threading
 import unittest
@@ -64,6 +65,50 @@ class SecurityRegressionTests(unittest.TestCase):
             "_create_unverified_context",
             inspect.getsource(utilities.conditional_download),
         )
+
+    def test_gpen_model_urls_have_sha256_pins(self):
+        expected_urls = {
+            "https://huggingface.co/hacksider/deep-live-cam/resolve/main/GPEN-BFR-256.onnx",
+            "https://huggingface.co/hacksider/deep-live-cam/resolve/main/GPEN-BFR-512.onnx",
+        }
+
+        self.assertTrue(expected_urls.issubset(utilities.MODEL_SHA256))
+
+    def test_gpen_precheck_rejects_existing_digest_mismatch(self):
+        sys.modules["modules.utilities"] = utilities
+        sys.modules.pop("modules.typing", None)
+        sys.modules.pop("modules.processors.frame.face_enhancer_gpen512", None)
+        import modules.processors.frame.face_enhancer_gpen512 as gpen512
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source_dir = Path(tmp) / "source"
+            source_dir.mkdir()
+            model_dir = Path(tmp) / "models"
+            model_dir.mkdir()
+            source = source_dir / "GPEN-BFR-512.onnx"
+            source.write_bytes(b"expected model")
+            existing = model_dir / "GPEN-BFR-512.onnx"
+            existing.write_bytes(b"tampered model")
+
+            old_models_dir = gpen512.models_dir
+            old_model_url = gpen512.MODEL_URL
+            old_model_file = gpen512.MODEL_FILE
+            old_sha = utilities.MODEL_SHA256.copy()
+            try:
+                gpen512.models_dir = str(model_dir)
+                gpen512.MODEL_URL = source.as_uri()
+                gpen512.MODEL_FILE = existing.name
+                utilities.MODEL_SHA256[source.as_uri()] = hashlib.sha256(
+                    b"expected model"
+                ).hexdigest()
+
+                self.assertFalse(gpen512.pre_check())
+            finally:
+                gpen512.models_dir = old_models_dir
+                gpen512.MODEL_URL = old_model_url
+                gpen512.MODEL_FILE = old_model_file
+                utilities.MODEL_SHA256.clear()
+                utilities.MODEL_SHA256.update(old_sha)
 
 
 class OversizedBodyHandler(http.server.BaseHTTPRequestHandler):
