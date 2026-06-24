@@ -7,7 +7,7 @@ This repository provides an installation script for setting up the [Deep-Live-Ca
 ## Repository Links
 
 - **Original Deep-Live-Cam Repository**: [hacksider/Deep-Live-Cam](https://github.com/hacksider/Deep-Live-Cam)
-- **Installer Code Repository**: [storizzi/Deep-Live-Cam-Mac-Installer](https://github.com/storizzi/Deep-Live-Cam-Mac-Installer)
+- **Installer Code Repository**: [nof0xgiven/deep-live-mac](https://github.com/nof0xgiven/deep-live-mac)
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ This repository provides an installation script for setting up the [Deep-Live-Ca
 
 ## Warning - VERY PRESCRIPTIVE AUTO-INSTALLATION
 
-This installer is VERY opinionated and if you don't have homebrew, it was install it for you, and it will install miniconda if you don't have it, the appropriate version of python in a conda session, and ffmpeg.
+This installer is VERY opinionated. It requires Homebrew to already be installed, then it installs Miniconda if you don't have it, the appropriate version of Python in a Conda session, and ffmpeg. Automatic Homebrew bootstrapping is disabled so the installer does not execute a remote shell script.
 
 It also aims to avoid pitfalls of other types of environment approaches by pinpointing the exact paths to python / pip etc in the conda session created
 
@@ -27,8 +27,8 @@ It also aims to avoid pitfalls of other types of environment approaches by pinpo
    Clone the repository containing the installation script:
 
    ```
-   git clone https://github.com/storizzi/Deep-Live-Cam-Mac-Installer.git
-   cd Deep-Live-Cam-Mac-Installer
+   git clone https://github.com/nof0xgiven/deep-live-mac.git
+   cd deep-live-mac
    ```
 
 2. **Run the Installation Script**:
@@ -39,7 +39,7 @@ It also aims to avoid pitfalls of other types of environment approaches by pinpo
    ./deep_live_cam.sh
    ```
 
-   Or run the script and download / clone the experimental version (you will need to run --clean first if you have downloaded the stable version already):
+   The `--experimental` option is accepted for compatibility, but setup still checks out the pinned commit:
 
    ```
    ./deep_live_cam.sh --experimental
@@ -47,12 +47,12 @@ It also aims to avoid pitfalls of other types of environment approaches by pinpo
 
    This script will:
    - Install xcode tools if not already installed (press ENTER after installation to continue with script installation)
-   - Install homebrew if not already installed
+   - Verify Homebrew is installed and stop with manual installation instructions if it is missing
    - Check for and install Conda if not already available
    - Set up a Conda environment with Python 3.10
    - Activate the environment
-   - Clone the Deep-Live-Cam repository.
-   - Download required models.
+   - Clone the configured Deep-Live-Cam repository and check out the pinned commit.
+   - Download required models and verify their SHA-256 digests.
    - Install necessary dependencies, including appropriate CoreML support for either Intel or Apple Silicon
    - Check for camera access and guide you to enable it if necessary for most popular terminal types
 
@@ -63,7 +63,7 @@ It also aims to avoid pitfalls of other types of environment approaches by pinpo
 ## Command-Line Options
 
 - **`--run`**: Skip setup and run the application only.
-- **`--experimental`**: When setting up and cloning, use the experimental branch - unstable but likely to have the latest fixes
+- **`--experimental`**: Accepted for compatibility, but setup still uses the pinned commit.
 - **`--setup`**: Perform setup only, without running the application.
 - **`--nocam`**: Skip the camera access check and proceed with setup and running.
 - **`--cpu`**: Run the application using CPU only (no GPUs).
@@ -207,15 +207,4 @@ This project is licensed under the [MIT License](LICENSE).
 ## Credits
 
 - The original Deep-Live-Cam project is developed and maintained by [hacksider](https://github.com/hacksider).
-- This installer script is developed and maintained by [Simon Huggins of Storizzi](https://github.com/storizzi).
-
-## Prompt for this readme was:
-
-Can you create a README.md markdown file for this that explains how to install this? Can you specify that it depends on the github repo which can be found at: https://github.com/hacksider/Deep-Live-Cam.
-The code will be stored at this location: https://github.com/storizzi/Deep-Live-Cam-Mac-Installer.
-
-Can you include a few sections on how to uninstall miniconda and homebrew if you want to (bearing in mind we installed miniconda with homebrew)
-
-Can you use ''' instead of backticks so that I can copy paste the markdown.
-
-Can you put the markdown text into a code block so I. can see the markdown to copy include links etc
+- This installer repository is maintained at [nof0xgiven/deep-live-mac](https://github.com/nof0xgiven/deep-live-mac).

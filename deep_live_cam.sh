@@ -4,12 +4,14 @@
 ENV_NAME="deep-live-cam"
 REQUIRED_PYTHON_VERSION="3.10"
 REPO_URL="https://github.com/hacksider/Deep-Live-Cam.git"
-BRANCH_NAME="experimental"
+PINNED_DEEP_LIVE_CAM_COMMIT="834bc43768bd8a799aab3ea03d98e622c0489243"
 MODELS_DIR="Deep-Live-Cam/models"
 URL_GFPGAN="https://huggingface.co/hacksider/deep-live-cam/resolve/main/GFPGANv1.4.pth"
 URL_INSWAPPER="https://huggingface.co/hacksider/deep-live-cam/resolve/main/inswapper_128_fp16.onnx"
 MODEL_1="$MODELS_DIR/GFPGANv1.4.pth"
 MODEL_2="$MODELS_DIR/inswapper_128_fp16.onnx"
+MODEL_1_SHA256="e2cd4703ab14f4d01fd1383a8a8b266f9a5833dacee8e6a79d3bf21a1b6be5ad"
+MODEL_2_SHA256="6d51a9278a1f650cffefc18ba53f38bf2769bf4bbff89267822cf72945f8a38b"
 COREML_DEPENDENCY="onnxruntime-silicon==1.13.1"
 INTEL_DEPENDENCY="onnxruntime-coreml==1.13.1"
 BREW_CONDA_PATH1="/opt/homebrew/Caskroom/miniconda/base/bin"
@@ -28,7 +30,7 @@ display_help() {
     echo "  --nocam         Skip camera access check and proceed with setup and running."
     echo "  --cpu           Run the application using CPU only."
     echo "  --clean         Remove the Conda environment and delete the cloned repository."
-    echo "  --experimental  Download experimental branch of the project to use."
+    echo "  --experimental  Accepted for compatibility; setup still uses the pinned commit."
     echo "  --camreset [APP_ID]  Reset camera access for the specified application (e.g., com.apple.Terminal or com.googlecode.iterm2)."
     echo "  --help          Display this help message and exit."
     echo ""
@@ -68,16 +70,10 @@ check_and_install_xcode_tools() {
 # Function to check if Homebrew is installed, and install it if not
 check_and_install_homebrew() {
     if ! command -v brew &> /dev/null; then
-        echo "Homebrew is not installed. Installing Homebrew..."
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        if [[ $? -ne 0 ]]; then
-            echo "Failed to install Homebrew."
-            exit 1
-        fi
-        echo "Homebrew installed successfully."
-        # Add Homebrew to the PATH
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-        eval "$(/opt/homebrew/bin/brew shellenv)"
+        echo "Homebrew is not installed."
+        echo "Install Homebrew manually from https://brew.sh, then re-run this installer."
+        echo "Automatic curl-to-shell Homebrew bootstrapping is disabled for security."
+        exit 1
     else
         echo "Homebrew is already installed."
     fi
@@ -109,9 +105,12 @@ install_conda() {
             exit 1
         fi
         echo "Miniconda installed successfully."
-        conda init --all
-        source ~/.zshrc
-        CONDA_BIN_PATH="$BREW_CONDA_PATH"
+        check_conda
+        if [[ -z "$CONDA_BIN_PATH" || ! -x "$CONDA_BIN_PATH/conda" ]]; then
+            echo "Failed to locate Conda after Miniconda installation."
+            exit 1
+        fi
+        "$CONDA_BIN_PATH/conda" init --all
     fi
 }
 
@@ -173,12 +172,11 @@ get_conda_bin_paths() {
 # Function to clone the Git repository if not already cloned
 clone_repo() {
     if [[ ! -d "Deep-Live-Cam" ]]; then
-        echo "Cloning the Deep-Live-Cam repository..."
-        if [[ "$CLONE_EXPERIMENTAL" == true ]]; then
-            git clone -b "$BRANCH_NAME" --single-branch "$REPO_URL"
-        else
-            git clone "$REPO_URL"
+        echo "Cloning the pinned Deep-Live-Cam repository..."
+        if [[ "${CLONE_EXPERIMENTAL:-false}" == true ]]; then
+            echo "Experimental branch selection is disabled; using pinned commit $PINNED_DEEP_LIVE_CAM_COMMIT."
         fi
+        git clone "$REPO_URL" Deep-Live-Cam
         if [[ $? -ne 0 ]]; then
             echo "Failed to clone the Deep-Live-Cam repository."
             exit 1
@@ -186,6 +184,65 @@ clone_repo() {
     else
         echo "Deep-Live-Cam repository already exists."
     fi
+    git -C Deep-Live-Cam fetch --depth 1 origin "$PINNED_DEEP_LIVE_CAM_COMMIT"
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to fetch pinned Deep-Live-Cam commit $PINNED_DEEP_LIVE_CAM_COMMIT."
+        exit 1
+    fi
+    git -C Deep-Live-Cam checkout --detach "$PINNED_DEEP_LIVE_CAM_COMMIT"
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to checkout pinned Deep-Live-Cam commit $PINNED_DEEP_LIVE_CAM_COMMIT."
+        exit 1
+    fi
+    local actual_commit
+    actual_commit=$(git -C Deep-Live-Cam rev-parse HEAD)
+    if [[ "$actual_commit" != "$PINNED_DEEP_LIVE_CAM_COMMIT" ]]; then
+        echo "Deep-Live-Cam checkout verification failed: expected $PINNED_DEEP_LIVE_CAM_COMMIT, got $actual_commit."
+        exit 1
+    fi
+}
+
+verify_file_sha256() {
+    local file_path="$1"
+    local expected_sha256="$2"
+    local actual_sha256
+    actual_sha256=$(shasum -a 256 "$file_path" | awk '{print $1}')
+    if [[ "$actual_sha256" != "$expected_sha256" ]]; then
+        echo "SHA-256 verification failed for $file_path."
+        echo "Expected: $expected_sha256"
+        echo "Actual:   $actual_sha256"
+        return 1
+    fi
+}
+
+download_verified_file() {
+    local url="$1"
+    local destination="$2"
+    local expected_sha256="$3"
+    local tmp_file
+    tmp_file="$(mktemp "${destination}.download.XXXXXX")"
+    curl --fail --location --proto '=https' --tlsv1.2 -o "$tmp_file" "$url"
+    if [[ $? -ne 0 ]]; then
+        rm -f "$tmp_file"
+        return 1
+    fi
+    if ! verify_file_sha256 "$tmp_file" "$expected_sha256"; then
+        rm -f "$tmp_file"
+        return 1
+    fi
+    mv "$tmp_file" "$destination"
+}
+
+ensure_verified_model() {
+    local model_path="$1"
+    local model_url="$2"
+    local expected_sha256="$3"
+    if [[ -f "$model_path" ]]; then
+        verify_file_sha256 "$model_path" "$expected_sha256"
+        return $?
+    fi
+    echo "Downloading $model_path..."
+    download_verified_file "$model_url" "$model_path" "$expected_sha256"
 }
 
 # Function to check and download models
@@ -193,28 +250,14 @@ check_and_download_models() {
     # Ensure the models directory exists
     mkdir -p "$MODELS_DIR"
 
-    # Download GFPGAN model if not already present
-    if [[ ! -f $MODEL_1 ]]; then
-        echo "Downloading $MODEL_1..."
-        curl -L -o $MODEL_1 $URL_GFPGAN
-        if [[ $? -ne 0 ]]; then
-            echo "Failed to download $MODEL_1."
-            exit 1
-        fi
-    else
-        echo "$MODEL_1 already exists."
+    if ! ensure_verified_model "$MODEL_1" "$URL_GFPGAN" "$MODEL_1_SHA256"; then
+        echo "Failed to verify $MODEL_1."
+        exit 1
     fi
 
-    # Download inswapper model if not already present
-    if [[ ! -f $MODEL_2 ]]; then
-        echo "Downloading $MODEL_2..."
-        curl -L -o $MODEL_2 $URL_INSWAPPER
-        if [[ $? -ne 0 ]]; then
-            echo "Failed to download $MODEL_2."
-            exit 1
-        fi
-    else
-        echo "$MODEL_2 already exists."
+    if ! ensure_verified_model "$MODEL_2" "$URL_INSWAPPER" "$MODEL_2_SHA256"; then
+        echo "Failed to verify $MODEL_2."
+        exit 1
     fi
 }
 
@@ -300,7 +343,11 @@ run_setup() {
     done < <(grep -Eo '^[a-zA-Z0-9-]+' requirements.txt)
 
     if [[ "$REQUIREMENTS_INSTALLED" = false ]]; then
-        $PIP_PATH install --use-pep517 basicsr || $PIP_PATH install git+https://github.com/xinntao/BasicSR.git
+        $PIP_PATH install --use-pep517 basicsr
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to install basicsr from the package index."
+            exit 1
+        fi
         $PIP_PATH install -r requirements.txt
         if [[ $? -ne 0 ]]; then
             echo "Failed to install Python dependencies."
@@ -460,7 +507,7 @@ for arg in "$@"; do
             SKIP_SETUP=true
             ;;
         --experimental)
-            echo "--experimental parameter detected. Cloning experimental branch..."
+            echo "--experimental parameter detected. Setup will still use the pinned commit."
             CLONE_EXPERIMENTAL=true
             ;;
         --setup)
